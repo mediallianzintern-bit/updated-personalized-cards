@@ -1,8 +1,9 @@
+import {postgresConfig} from './postgres-config.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import pg from 'pg';
 
 export function createPostgresStore(connectionString, { pool: suppliedPool } = {}) {
-  const pool = suppliedPool || new pg.Pool({ connectionString, max: 3, connectionTimeoutMillis: 10000, idleTimeoutMillis: 10000 });
+  const pool = suppliedPool || new pg.Pool({ ...postgresConfig(connectionString), max: 3, connectionTimeoutMillis: 10000, idleTimeoutMillis: 10000 });
   const context = new AsyncLocalStorage();
   const current = () => { const state = context.getStore(); if (!state) throw new Error('Database access outside request transaction'); return state; };
   const store = {

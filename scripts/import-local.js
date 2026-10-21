@@ -1,3 +1,4 @@
+import {postgresConfig} from '../server/postgres-config.js';
 import fs from 'node:fs/promises';
 import crypto from 'node:crypto';
 import pg from 'pg';
@@ -9,7 +10,7 @@ const db=JSON.parse(await fs.readFile(filename,'utf8'));
 if(!Array.isArray(db.cards)||!Array.isArray(db.leads)||!Array.isArray(db.events))throw new Error('Invalid backup');
 // Local login tokens/rate counters must never be carried into a live environment.
 delete db.sessions;delete db.rates;
-const pool=new pg.Pool({connectionString:process.env.DATABASE_URL,max:1});
+const pool=new pg.Pool({...postgresConfig(process.env.DATABASE_URL),max:1});
 const storage=createClient(process.env.SUPABASE_URL,process.env.SUPABASE_SECRET_KEY,{auth:{persistSession:false}}).storage.from('card-media');
 const uploaded=new Map();
 async function convert(value){
