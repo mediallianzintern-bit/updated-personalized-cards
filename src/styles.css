@@ -41,3 +41,10 @@
 .digital-card .card-socials a:focus-visible{outline:2px solid var(--card-accent);outline-offset:3px}
 .public-card-wrap .card-socials a{flex-basis:60px;width:60px;height:60px;border-radius:14px}
 .public-card-wrap .card-socials .social-brand-logo{width:28px;height:28px}
+
+/* Prominent registration action on client sign-in. */
+.create-card-callout{margin-top:24px;padding:20px;background:#f0f4e7;border:1px solid #d5dfc3;border-radius:14px;display:grid;gap:12px}
+.create-card-callout>span{color:#42563b;font-size:14px;font-weight:500}
+.client-account .create-card-cta{display:flex;align-items:center;justify-content:center;gap:12px;min-height:54px;padding:14px 20px;border:1px solid #adc28a;border-radius:9px;background:#dce9bf;color:#173d30;font-size:17px;font-weight:700;text-decoration:none;box-shadow:0 3px 8px #173d300d;transition:background .15s,box-shadow .15s}
+.client-account .create-card-cta:hover{background:#ccdda6;box-shadow:0 4px 12px #173d301a}
+.client-account .create-card-cta:focus-visible{outline:3px solid #173d30;outline-offset:4px}
