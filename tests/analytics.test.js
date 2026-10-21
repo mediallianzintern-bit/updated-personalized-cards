@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {buildInsights,eventSchema} from '../server/analytics.js';
+import {sourceFromSearch} from '../src/tracking.js';
+const at=days=>new Date(Date.now()-days*86400000).toISOString();
+const profile={name:'Owner',socials:[{id:'s1',platform:'LinkedIn'}],links:[{id:'l1',title:'Portfolio'}]};
+const db={cards:[{id:'a',draft:profile},{id:'b',draft:{...profile,name:'Other'}}],leads:[{cardId:'a',createdAt:at(8)}],events:[{cardId:'a',type:'view',at:at(1),source:'email-signature'},{cardId:'a',type:'view',at:at(8),source:'qr'},{cardId:'a',type:'view',at:at(40)},{cardId:'b',type:'view',at:at(1)},{cardId:'a',type:'link',target:'social:LinkedIn',at:at(1)},{cardId:'a',type:'link',target:'LinkedIn',at:at(1)},{cardId:'a',type:'link',target:'link:l1',at:at(1)}]};
+test('analytics periods and card scope apply to all aggregates',()=>{const short=buildInsights(db,'a','7');assert.equal(short.views,1);assert.equal(short.leads,0);assert.equal(short.days.length,7);assert.equal(short.cards.length,1);assert.ok(short.recent.every(e=>e.cardId==='a'));assert.equal(buildInsights(db,'a','30').views,2);assert.equal(buildInsights(db,'a','all').views,3);assert.equal(buildInsights(db,'a','invalid').period,'30');});
+test('analytics identifies legacy and prefixed social/link clicks',()=>{const data=buildInsights(db,'a');assert.equal(data.socialClicks.reduce((n,row)=>n+row.clicks,0),2);assert.ok(data.socialClicks.every(row=>row.label==='LinkedIn'));assert.equal(data.linkClicks[0].label,'Portfolio');assert.equal(data.sources.find(s=>s.source==='email-signature').views,1);});
+test('share attribution accepts additional first party sources',()=>{for(const source of ['email-signature','virtual-background']){assert.equal(sourceFromSearch('?via='+source),source);assert.equal(eventSchema.parse({type:'view',source}).source,source);}assert.equal(sourceFromSearch('?via=unknown'),'other');});

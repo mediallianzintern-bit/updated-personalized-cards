@@ -1,0 +1,87 @@
+/* Public card and shared live preview: calm, compact reference-inspired styling. */
+.digital-card { color: #20242d; }
+.digital-card .card-identity > .eyebrow { display: none; }
+.digital-card .card-company img { width: auto; max-width: 144px; height: 30px; object-fit: contain; object-position: left center; }
+.digital-card .card-hero { border-radius: var(--card-radius); }
+.digital-card .card-identity h1 { letter-spacing: -.8px; line-height: 1.08; font-weight: 750; }
+.digital-card .card-identity p { line-height: 1.45; }
+.digital-card.layout-minimal .card-identity h1 { color: #20242d; }
+.digital-card.layout-minimal .card-identity p,
+.digital-card.layout-minimal .card-identity small { color: #656970; opacity: 1; }
+.digital-card .card-actions > button { min-height: 42px; font-size: 11px; border-color: #dedee1; border-radius: max(0px, calc(var(--card-radius) * .65)); }
+.digital-card .card-actions > button.card-primary { border-color: var(--card-button); }
+.digital-card .card-sections { padding: 0 18px; }
+.digital-card .card-sections > section { padding-top: 25px; }
+.digital-card .card-sections h3 { font-size: 14px; font-weight: 700; letter-spacing: -.3px; margin-bottom: 12px; }
+.digital-card .card-bio { color: #686b72; font-size: 12px; line-height: 1.65; }
+.digital-card .card-expand { font-size: 12px; color: var(--card-accent); font-weight: 650; padding-top: 6px; }
+.digital-card .card-link { padding: 10px 0; gap: 12px; border-color: #e7e7e9; }
+.digital-card .card-link > .link-icon { width: 46px; height: 46px; border-radius: 9px; overflow: hidden; background: #f5f5f6; }
+.digital-card .link-thumbnail { width: 100%; height: 100%; object-fit: cover; }
+.digital-card .card-link strong { font-size: 12px; line-height: 1.45; color: #252933; }
+.digital-card .card-link small { font-size: 10px; line-height: 1.5; color: #70747b; }
+.digital-card .card-link > svg { flex-shrink: 0; color: #bfc2c7; }
+.digital-card .card-contact { gap: 0; }
+.digital-card .card-contact a { min-height: 46px; gap: 12px; padding: 12px 0; font-size: 12px; color: #454a53; border-bottom: 1px solid #e9e9ec; }
+.digital-card .card-contact a:last-child { border-bottom: 0; }
+.digital-card .card-contact a > svg { flex-shrink: 0; }
+.digital-card .card-contact a > svg:last-child { color: #bfc2c7; }
+.digital-card .card-footer { color: #8a8d93; margin: 34px 18px 24px; font-size: 9px; text-align: center; }
+.digital-card .card-link:focus-visible,
+.digital-card .card-contact a:focus-visible,
+.digital-card button:focus-visible { outline: 2px solid var(--card-accent); outline-offset: 3px; }
+.public-page { background: #fafafa; padding: 32px 16px; }
+.public-card-wrap { max-width: 600px; border-radius: 20px; box-shadow: 0 8px 40px #20242d08; }
+.public-card-wrap .card-topline { padding: 20px 24px; }
+.public-card-wrap .card-company img { max-width: 170px; height: 34px; }
+.public-card-wrap .card-hero { margin: 20px 20px 0; }
+.public-card-wrap .card-identity h1 { font-size: 40px; letter-spacing: -1.5px; }
+.public-card-wrap .card-identity p { font-size: 16px; margin-top: 10px; }
+.public-card-wrap .card-identity small { font-size: 12px; }
+.public-card-wrap .layout-minimal .card-hero { min-height: 0; padding: 24px 0 8px; gap: 20px; }
+.public-card-wrap .layout-minimal .card-identity { padding: 0; }
+.public-card-wrap .layout-minimal .card-identity h1 { font-size: 32px; }
+.public-card-wrap .layout-minimal .card-photo { width: 96px; height: 110px; min-height: 110px; }
+.public-card-wrap .layout-signature .card-hero { margin-top: -40px; min-height: 280px; }
+.public-card-wrap .layout-signature .card-photo { min-height: 280px; }
+.public-card-wrap .layout-signature .card-identity h1 { font-size: 38px; }
+.public-card-wrap .layout-signature .card-identity { padding: 24px 20px; }
+.public-card-wrap .layout-signature .signature-logo { width: 110px; max-height: 40px; }
+.public-card-wrap .card-actions { margin: 24px 20px 0; gap: 8px; }
+.public-card-wrap .card-actions > button { height: 52px; font-size: 14px; }
+.public-card-wrap .card-sections { padding: 0 24px; }
+.public-card-wrap .card-sections > section { padding-top: 30px; }
+.public-card-wrap .card-sections h3 { font-size: 18px; margin-bottom: 14px; }
+.public-card-wrap .card-bio { font-size: 16px; line-height: 1.6; }
+.public-card-wrap .card-expand { font-size: 15px; }
+.public-card-wrap .card-link { gap: 16px; padding: 10px 0; min-height: 80px; }
+.public-card-wrap .card-link > .link-icon { width: 64px; height: 64px; border-radius: 10px; }
+.public-card-wrap .card-link strong { font-size: 16px; }
+.public-card-wrap .card-link small { font-size: 13px; }
+.public-card-wrap .card-contact a { min-height: 60px; font-size: 15px; }
+.public-card-wrap .card-footer { margin: 48px 24px 30px; font-size: 11px; }
+@media (max-width: 600px) {
+  .public-page { padding: 0; background: #fff; }
+  .public-card-wrap { border-radius: 0; box-shadow: none; }
+  .public-card-wrap .card-identity h1 { font-size: 32px; }
+  .public-card-wrap .card-identity p { font-size: 14px; }
+  .public-card-wrap .layout-signature .card-identity h1 { font-size: 30px; }
+  .public-card-wrap .layout-signature .card-hero,
+  .public-card-wrap .layout-signature .card-photo { min-height: 240px; }
+  .public-card-wrap .card-actions > button { font-size: 12px; }
+  .public-card-wrap .card-bio { font-size: 15px; }
+  .public-card-wrap .card-link strong { font-size: 14px; }
+}
+.digital-card .card-identity h1,
+.digital-card .card-sections h3 { font-family: var(--card-heading-font, 'DM Sans', sans-serif); }
+.digital-card.font-mono .card-identity h1 { letter-spacing: -1px; }
+.typography-field { grid-column: 1 / -1; min-width: 0; }
+.typography-help { color: #778079; font-size: 12px; margin: 6px 0 12px; }
+.typography-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.typography-options button { text-align: left; padding: 16px; background: #fff; border: 1px solid #e0e5dd; border-radius: 10px; min-width: 0; color: #26352f; }
+.typography-options button[aria-pressed=true] { border-color: #688350; box-shadow: inset 0 0 0 1px #688350; background: #f4f7ef; }
+.typography-options button:focus-visible { outline: 2px solid #153b2e; outline-offset: 3px; }
+.typography-sample { display: block; font-size: 23px; line-height: 1.25; margin-bottom: 18px; overflow-wrap: anywhere; }
+.typography-options strong { display: flex; justify-content: space-between; font-size: 12px; gap: 6px; }
+.typography-options small { display: block; color: #778079; font-size: 11px; margin-top: 5px; }
+@media(max-width:380px) { .typography-options { grid-template-columns: 1fr; } }
