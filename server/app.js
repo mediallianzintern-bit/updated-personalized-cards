@@ -63,7 +63,15 @@ export function createApp({ dataDir, password = '', production = false, publicUr
   });
   app.post('/api/public/:slug/leads', rateLimit({windowMs: 3600_000, limit: 15, standardHeaders:true, legacyHeaders:false}), (req, res) => {
     const c = publicCard(req); if (!c || !c.published.exchangeEnabled) return res.status(404).json({ error: 'Contact exchange is unavailable.' });
-    const parsed = leadSchema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Enter a valid name and email, and agree to share your details.' });
+    // Apply the published form rules server-side too; hidden values never enter storage.
+    const input = {...req.body};
+    for (const field of ['phone','company','message']) {
+      if (c.published.exchangeFields?.[field] === 'hidden') input[field] = '';
+    }
+    const parsed = leadSchema.safeParse(input); if (!parsed.success) return res.status(400).json({ error: 'Enter a valid name and email, and agree to share your details.' });
+    for (const field of ['phone','company','message']) {
+      if (c.published.exchangeFields?.[field] === 'required' && !parsed.data[field]) return res.status(400).json({error:`Enter your ${field}.`});
+    }
     store.update(db => db.leads.unshift({ id: crypto.randomUUID(), cardId: c.id, ...parsed.data, createdAt: new Date().toISOString() }));
     res.status(201).json({ ok: true });
   });
