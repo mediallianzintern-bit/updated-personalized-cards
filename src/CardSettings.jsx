@@ -1,3 +1,4 @@
+import FollowUpEditor from './FollowUpEditor';
 import React from 'react';
 import {Field,Toggle} from './components';
 
@@ -22,12 +23,7 @@ export default function CardSettings({profile:p,setProfile}) {
       <Toggle label="Custom action button" description="Add a booking, website or other link." checked={p.customCtaEnabled??false} onChange={value=>set('customCtaEnabled',value)}/>
       {p.customCtaEnabled&&<div className="form-grid"><Field label="Button label" value={p.customCtaLabel||''} maxLength={40} required placeholder="Book a meeting" onChange={e=>set('customCtaLabel',e.target.value)}/><Field label="Destination URL" type="url" value={p.customCtaUrl||''} maxLength={2000} required placeholder="https://" onChange={e=>set('customCtaUrl',e.target.value)}/></div>}
     </section>
-    <section className="editor-section">
-      <div className="section-title"><div><h3>Follow-up email template</h3><p>Prepare an email for new connections.</p></div></div>
-      <p className="notice" role="note">Sender setup required; automatic delivery is not connected. These settings save your template only.</p>
-      <Toggle label="Prepare follow-up template" description="Save a subject and message for future email setup." checked={p.followUpEnabled??false} onChange={value=>set('followUpEnabled',value)}/>
-      {p.followUpEnabled&&<><Field label="Subject" value={p.followUpSubject||''} maxLength={150} onChange={e=>set('followUpSubject',e.target.value)}/><Field label="Message"><textarea rows={5} value={p.followUpMessage||''} maxLength={2000} onChange={e=>set('followUpMessage',e.target.value)}/></Field></>}
-    </section>
+    <FollowUpEditor profile={p} setProfile={setProfile}/>
     <section className="editor-section"><div className="section-title"><div><h3>Branding</h3><p>Control the footer shown on your public card.</p></div></div><Toggle label="Show card branding" checked={p.showBranding} onChange={value=>set('showBranding',value)}/></section>
   </div>;
 }

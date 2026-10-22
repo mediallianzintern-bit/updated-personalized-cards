@@ -24,9 +24,15 @@ export const profileSchema = z.object({
   exchangeFields: z.object({phone:z.enum(['hidden','optional','required']).default('optional'),company:z.enum(['hidden','optional','required']).default('optional'),message:z.enum(['hidden','optional','required']).default('optional')}).default({}),
   saveLabel: text(40).min(1).default('Save Contact'), exchangeLabel: text(40).min(1).default('Exchange Contact'),
   customCtaEnabled: z.boolean().default(false), customCtaLabel: text(40).default(''), customCtaUrl: url.default(''),
+  followUpStyle: z.enum(['classic','minimal','brand']).default('classic'),
+  followUpButtonEnabled:z.boolean().default(false), followUpButtonLabel:text(40).default(''), followUpButtonUrl:url.default(''),
   followUpEnabled: z.boolean().default(false), followUpSubject: text(150).default(''), followUpMessage: text(2000).default(''),
   visibleSections: z.array(z.enum(sections)).max(7), exchangeEnabled: z.boolean(), saveEnabled: z.boolean(), showBranding: z.boolean(),
 }).superRefine((profile,ctx)=>{
+  if(profile.followUpButtonEnabled){
+    if(!profile.followUpButtonLabel)ctx.addIssue({code:z.ZodIssueCode.custom,path:['followUpButtonLabel'],message:'Enter an email button label'});
+    if(!profile.followUpButtonUrl)ctx.addIssue({code:z.ZodIssueCode.custom,path:['followUpButtonUrl'],message:'Enter an email button URL'});
+  }
   if(profile.customCtaEnabled){
     if(!profile.customCtaLabel)ctx.addIssue({code:z.ZodIssueCode.custom,path:['customCtaLabel'],message:'Enter a button label'});
     if(!profile.customCtaUrl)ctx.addIssue({code:z.ZodIssueCode.custom,path:['customCtaUrl'],message:'Enter a destination URL'});
