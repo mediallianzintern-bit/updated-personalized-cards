@@ -1,5 +1,5 @@
 import express from 'express';
-import {mediaRoutes} from './media.js';
+import {mediaRoutes,publicImageUrls} from './media.js';
 import {rateGate} from './rate-gate.js';
 import {persistentSessions} from './sessions.js';
 import {clientRoutes} from './clients.js';
@@ -55,7 +55,7 @@ export function createApp({ dataDir, password = '', production = false, publicUr
   const publicCard = req => store.get().cards.find(c => c.published?.slug === req.params.slug);
   const limiter = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false });
   app.use('/api/public', limiter);
-  app.get('/api/public/:slug', (req, res) => { const c = publicCard(req); if (!c) return res.status(404).json({ error: 'This card is not available.' }); res.json(c.published); });
+  app.get('/api/public/:slug', async (req, res) => { const c = publicCard(req); if (!c) return res.status(404).json({ error: 'This card is not available.' }); const imageUrls = await publicImageUrls(c.published, media); res.json({...c.published, imageUrls}); });
   app.get('/api/public/:slug/contact.vcf', (req, res) => {
     const c = publicCard(req); if (!c || !c.published.saveEnabled) return res.status(404).json({ error: 'Contact download is unavailable.' });
     recordEvent(req,c.id,{type:'save',source:sourceType(req.query.via)});

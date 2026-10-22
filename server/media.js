@@ -25,3 +25,21 @@ export function mediaRoutes(app,store,storage,adminAuth) {
     res.set('Cache-Control','private, no-store').redirect(data.signedUrl);
   } catch(error){next(error)}});
 }
+
+// Only sign images from the already-authorized published profile. Keep stored
+// references unchanged so editing and future URL refreshes remain stable.
+export async function publicImageUrls(profile, storage) {
+  if (!storage) return {};
+  const refs = [...new Set([
+    profile.photo, profile.logo, profile.cover,
+    ...(profile.links || []).filter(link => link.enabled).map(link => link.thumbnail),
+    ...(profile.gallery || []).map(item => item.image),
+    ...(profile.videos || []).map(item => item.thumbnail),
+  ].filter(value => typeof value === 'string' && mediaReference.test(value)))];
+  if (!refs.length) return {};
+  try {
+    const {data, error} = await storage.createSignedUrls(refs.map(ref => ref.split('/').pop()), 60);
+    if (error) return {};
+    return Object.fromEntries((data || []).filter(item => !item.error && item.signedUrl && refs.includes('/api/media/' + item.path)).map(item => ['/api/media/' + item.path, item.signedUrl]));
+  } catch { return {}; } // Existing authorized image endpoint remains the fallback.
+}
