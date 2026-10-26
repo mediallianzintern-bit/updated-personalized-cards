@@ -22,6 +22,9 @@ export const profileSchema = z.object({
   sectionOrder: z.array(z.enum(sections)).min(4).max(7).refine(v => new Set(v).size === v.length && ['about','links','socials','contact'].every(s=>v.includes(s))),
   exchangeFlow: z.enum(['card-first','exchange-first']).default('card-first'),
   exchangeFields: z.object({phone:z.enum(['hidden','optional','required']).default('optional'),company:z.enum(['hidden','optional','required']).default('optional'),message:z.enum(['hidden','optional','required']).default('optional')}).default({}),
+  requireEmail: z.boolean().default(true), consentEnabled: z.boolean().default(true),
+  exchangeCustomEnabled: z.boolean().default(false), exchangeCustomLabel: text(100).default('Additional information'), exchangeCustomRequired: z.boolean().default(false),
+  exchangeWidgets: z.boolean().default(false),
   saveLabel: text(40).min(1).default('Save Contact'), exchangeLabel: text(40).min(1).default('Exchange Contact'),
   customCtaEnabled: z.boolean().default(false), customCtaLabel: text(40).default(''), customCtaUrl: url.default(''),
   followUpStyle: z.enum(['classic','minimal','brand']).default('classic'),
@@ -29,6 +32,7 @@ export const profileSchema = z.object({
   followUpEnabled: z.boolean().default(false), followUpSubject: text(150).default(''), followUpMessage: text(2000).default(''),
   visibleSections: z.array(z.enum(sections)).max(7), exchangeEnabled: z.boolean(), saveEnabled: z.boolean(), showBranding: z.boolean(),
 }).superRefine((profile,ctx)=>{
+  if(profile.exchangeCustomEnabled&&!profile.exchangeCustomLabel)ctx.addIssue({code:z.ZodIssueCode.custom,path:['exchangeCustomLabel'],message:'Enter a custom field label'});
   if(profile.followUpButtonEnabled){
     if(!profile.followUpButtonLabel)ctx.addIssue({code:z.ZodIssueCode.custom,path:['followUpButtonLabel'],message:'Enter an email button label'});
     if(!profile.followUpButtonUrl)ctx.addIssue({code:z.ZodIssueCode.custom,path:['followUpButtonUrl'],message:'Enter an email button URL'});
@@ -38,7 +42,7 @@ export const profileSchema = z.object({
     if(!profile.customCtaUrl)ctx.addIssue({code:z.ZodIssueCode.custom,path:['customCtaUrl'],message:'Enter a destination URL'});
   }
 });
-export const leadSchema = z.object({ name: text(100).min(1), email: z.string().trim().email().max(254), phone: text(40).default(''), company: text(150).default(''), message: text(2000).default(''), consent: z.literal(true) });
+export const leadSchema = z.object({ name: text(100).min(1), email: z.union([z.literal(''),z.string().trim().email().max(254)]).default(''), phone: text(40).default(''), company: text(150).default(''), message: text(2000).default(''), consent: z.boolean().default(false), customValue:text(500).default(''), photo:z.string().max(180000).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/).or(z.literal('')).default(''), voice:z.string().max(360000).regex(/^data:audio\/(webm|ogg|mpeg|mp4|wav|x-m4a);base64,[A-Za-z0-9+/=]+$/).or(z.literal('')).default(''), location:z.object({latitude:z.number().min(-90).max(90),longitude:z.number().min(-180).max(180)}).nullable().default(null) });
 export const seedProfile = {
   name: 'Dr. Prtiesh Patel', title: 'Founder', company: 'Mediallianz', slug: 'pritesh-patel', email: 'ppatel@mediallainz.com', phone: '+91 9892906989', website: 'https://mediallianz.com', location: '',
   about: 'Welcome to my digital card. I’m the founder of Mediallianz. Save my contact details or share yours below—let’s stay connected.',

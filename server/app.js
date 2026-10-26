@@ -68,11 +68,18 @@ export function createApp({ dataDir, password = '', production = false, publicUr
     for (const field of ['phone','company','message']) {
       if (c.published.exchangeFields?.[field] === 'hidden') input[field] = '';
     }
-    const parsed = leadSchema.safeParse(input); if (!parsed.success) return res.status(400).json({ error: 'Enter a valid name and email, and agree to share your details.' });
+    const settings=c.published;
+    if(!settings.exchangeCustomEnabled)input.customValue='';
+    if(!settings.exchangeWidgets){input.photo='';input.voice='';input.location=null;}
+    if(settings.consentEnabled===false)input.consent=false;
+    const parsed = leadSchema.safeParse(input); if (!parsed.success) return res.status(400).json({ error: 'Check your contact details and attachments. Use a valid email if provided.' });
     for (const field of ['phone','company','message']) {
       if (c.published.exchangeFields?.[field] === 'required' && !parsed.data[field]) return res.status(400).json({error:`Enter your ${field}.`});
     }
-    store.update(db => db.leads.unshift({ id: crypto.randomUUID(), cardId: c.id, ...parsed.data, createdAt: new Date().toISOString() }));
+    if(settings.requireEmail!==false&&!parsed.data.email)return res.status(400).json({error:'Enter your email address.'});
+    if(settings.consentEnabled!==false&&!parsed.data.consent)return res.status(400).json({error:'Please agree to share your details.'});
+    if(settings.exchangeCustomEnabled&&settings.exchangeCustomRequired&&!parsed.data.customValue)return res.status(400).json({error:'Complete the additional information field.'});
+    store.update(db => db.leads.unshift({ customLabel:settings.exchangeCustomEnabled?settings.exchangeCustomLabel:'', consentRequested:settings.consentEnabled!==false, id: crypto.randomUUID(), cardId: c.id, ...parsed.data, createdAt: new Date().toISOString() }));
     res.status(201).json({ ok: true });
   });
   app.post('/api/public/:slug/events', (req, res) => {

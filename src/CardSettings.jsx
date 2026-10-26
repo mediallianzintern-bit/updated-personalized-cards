@@ -1,8 +1,9 @@
 import FollowUpEditor from './FollowUpEditor';
-import React from 'react';
-import {Field,Toggle} from './components';
+import React, {useState} from 'react';
+import {Field,Toggle,ExchangeForm} from './components';
 
 export default function CardSettings({profile:p,setProfile}) {
+  const [preview,setPreview]=useState(false);
   const set=(key,value)=>setProfile(current=>({...current,[key]:value}));
   return <div className="card-settings">
     <section className="editor-section">
@@ -13,7 +14,14 @@ export default function CardSettings({profile:p,setProfile}) {
           <option value="card-first">Show my card first</option><option value="exchange-first">Open the exchange form first</option>
         </select>
       </Field>
-      <h4>Exchange contact form</h4><p className="muted">Name, email and consent are always required.</p>
+      <h4>Exchange contact form</h4><button type="button" className="button" onClick={()=>setPreview(true)}>Preview form</button>
+      <Toggle label="Require email" checked={p.requireEmail!==false} onChange={v=>set('requireEmail',v)}/>
+      <Toggle label="Require phone number" checked={p.exchangeFields?.phone==='required'} onChange={v=>set('exchangeFields',{...p.exchangeFields,phone:v?'required':'optional'})}/>
+      <Toggle label="Custom field" description="Ask visitors one additional question." checked={p.exchangeCustomEnabled??false} onChange={v=>set('exchangeCustomEnabled',v)}/>
+      {p.exchangeCustomEnabled&&<><Field label="Custom field label" value={p.exchangeCustomLabel??'Additional information'} maxLength={100} required onChange={e=>set('exchangeCustomLabel',e.target.value)}/><Toggle label="Require custom field" checked={p.exchangeCustomRequired??false} onChange={v=>set('exchangeCustomRequired',v)}/></>}
+      <Toggle label="Consent checkbox" description="Require visitors to confirm that you may contact them." checked={p.consentEnabled!==false} onChange={v=>set('consentEnabled',v)}/>
+      <Toggle label="Exchange detail widgets" description="Let visitors optionally share a photo, voice note or location." checked={p.exchangeWidgets??false} onChange={v=>set('exchangeWidgets',v)}/>
+      <p className="muted">Full name is always required. Attachments are visible only in your workspace.</p>
       <div className="form-grid">{[['phone','Phone number'],['company','Company'],['message','Message']].map(([key,label])=><Field key={key} label={label}><select value={p.exchangeFields?.[key]||'optional'} onChange={e=>set('exchangeFields',{...p.exchangeFields,[key]:e.target.value})}><option value="optional">Optional</option><option value="required">Required</option><option value="hidden">Hidden</option></select></Field>)}</div>
     </section>
     <section className="editor-section">
@@ -25,5 +33,6 @@ export default function CardSettings({profile:p,setProfile}) {
     </section>
     <FollowUpEditor profile={p} setProfile={setProfile}/>
     <section className="editor-section"><div className="section-title"><div><h3>Branding</h3><p>Control the footer shown on your public card.</p></div></div><Toggle label="Show card branding" checked={p.showBranding} onChange={value=>set('showBranding',value)}/></section>
+    {preview&&<ExchangeForm profile={p} preview onClose={()=>setPreview(false)}/>}
   </div>;
 }
