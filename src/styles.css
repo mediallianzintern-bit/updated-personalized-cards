@@ -50,9 +50,3 @@
 .client-account .create-card-cta:focus-visible{outline:3px solid #173d30;outline-offset:4px}
 
 .exchange-widgets{min-width:0;border:1px solid var(--border);border-radius:12px;padding:16px;display:grid;gap:12px;margin:18px 0;background:#f8f9f6}.exchange-widgets legend{font-size:13px;font-weight:600;padding:0 6px}.exchange-widgets input{max-width:100%}.exchange-widgets audio,.lead-extras audio{max-width:100%}.lead-extras{display:grid;gap:12px;margin:12px 0}.lead-extras a{color:var(--green);text-decoration:underline}.exchange-widgets>button:not(.button){border:0;background:none;text-align:left;text-decoration:underline;padding:6px 0;font-size:12px}
-
-/* Uploaded banners retain their original proportions at every card width. */
-.digital-card .card-cover,
-.public-card-wrap .digital-card .card-cover{width:100%;height:auto;object-fit:contain;display:block}
-.digital-card.layout-signature .card-cover + .card-hero,
-.public-card-wrap .digital-card.layout-signature .card-cover + .card-hero{margin-top:16px}
