@@ -50,3 +50,5 @@
 .client-account .create-card-cta:focus-visible{outline:3px solid #173d30;outline-offset:4px}
 
 .exchange-widgets{min-width:0;border:1px solid var(--border);border-radius:12px;padding:16px;display:grid;gap:12px;margin:18px 0;background:#f8f9f6}.exchange-widgets legend{font-size:13px;font-weight:600;padding:0 6px}.exchange-widgets input{max-width:100%}.exchange-widgets audio,.lead-extras audio{max-width:100%}.lead-extras{display:grid;gap:12px;margin:12px 0}.lead-extras a{color:var(--green);text-decoration:underline}.exchange-widgets>button:not(.button){border:0;background:none;text-align:left;text-decoration:underline;padding:6px 0;font-size:12px}
+
+.cover-framing{padding:18px;border:1px solid #dce2d7;border-radius:12px;margin:12px 0 24px}.cover-framing h4{margin:0 0 8px}.cover-framing p{font-size:14px;color:#687460;margin:0 0 18px}.cover-framing input[type=range]{width:100%;padding:0;accent-color:#153b2e;cursor:pointer}.cover-framing-actions{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.cover-framing small{display:block;color:#687460;line-height:1.5}

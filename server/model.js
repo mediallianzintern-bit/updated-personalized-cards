@@ -12,6 +12,7 @@ export const profileSchema = z.object({
   about: text(5000), photo: image, logo: image, cover: image,
   accent: z.string().regex(/^#[0-9a-fA-F]{6}$/), background: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   buttonColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(), photoPositionX: z.number().min(0).max(100).default(50), photoPositionY: z.number().min(0).max(100).default(50),
+  coverPositionX: z.number().min(0).max(100).default(50), coverPositionY: z.number().min(0).max(100).default(50),
   logoBackground: z.enum(['light','dark','transparent','custom']).default('light'), logoBackgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).default('#ffffff'), logoSize: z.enum(['small','medium','large']).default('medium'),
   layout: z.enum(['classic', 'portrait', 'minimal', 'signature']), font: z.enum(typographyIds), radius: z.enum(['soft', 'square', 'round']),
   links: z.array(z.object({ id: text(80).min(1), title: text(120).min(1), description: text(250), thumbnail:image.optional(), url: url.refine(Boolean, 'Enter a URL'), icon: z.enum(['globe', 'calendar', 'file', 'video', 'link']), enabled: z.boolean() })).max(30),
