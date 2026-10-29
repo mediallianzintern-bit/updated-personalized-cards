@@ -55,3 +55,8 @@
 
 .digital-card.cover-full .card-cover{width:100%;height:auto;object-fit:contain;display:block}
 .digital-card.cover-full.layout-signature .card-cover + .card-hero{margin-top:16px}
+
+/* Keep the mobile banner proportions when the public card grows on desktop. */
+@media (min-width:601px){
+  .public-card-wrap .digital-card.layout-signature:not(.cover-full) .card-cover{height:auto;aspect-ratio:13 / 5;object-fit:cover}
+}
