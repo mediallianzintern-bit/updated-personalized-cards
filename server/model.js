@@ -23,7 +23,7 @@ export const profileSchema = z.object({
   files:z.array(z.object({id:text(80).min(1),title:text(160).min(1),name:text(160).regex(/^[^/\\]+$/),data:z.string().max(2800000).regex(/^data:(?:application\/(?:pdf|msword|vnd\.ms-powerpoint|vnd\.ms-excel|vnd\.openxmlformats-officedocument\.(?:wordprocessingml\.document|presentationml\.presentation|spreadsheetml\.sheet))|text\/plain);base64,[A-Za-z0-9+/=]+$/).or(mediaUrl)})).max(8).optional(),
   sectionOrder: z.array(z.enum(sections)).min(4).max(7).refine(v => new Set(v).size === v.length && ['about','links','socials','contact'].every(s=>v.includes(s))),
   exchangeFlow: z.enum(['card-first','exchange-first']).default('card-first'),
-  exchangeFields: z.object({phone:z.enum(['hidden','optional','required']).default('optional'),company:z.enum(['hidden','optional','required']).default('optional'),message:z.enum(['hidden','optional','required']).default('optional')}).default({}),
+  exchangeFields: z.object({phone:z.enum(['hidden','optional','required']).default('optional'),company:z.enum(['hidden','optional','required']).default('optional'),message:z.enum(['hidden','optional','required']).default('optional')}).prefault({}),
   requireEmail: z.boolean().default(true), consentEnabled: z.boolean().default(true),
   exchangeCustomEnabled: z.boolean().default(false), exchangeCustomLabel: text(100).default('Additional information'), exchangeCustomRequired: z.boolean().default(false),
   exchangeWidgets: z.boolean().default(false),

@@ -4,9 +4,9 @@ export function rateGate(store) {
   return (req,res,next)=>{
     const route=req.originalUrl.split('?')[0];
     const sensitive=['/api/login','/api/client/login','/api/client/register'].includes(route);
-    const upload=route==='/api/media/upload';
+    const upload=['/api/media/upload','/api/media/complete'].includes(route);
     const window=sensitive||upload?900000:60000;
-    const limit=sensitive?10:upload?20:180;
+    const limit=sensitive?10:upload?60:180;
     const now=Date.now(), group=sensitive?'auth':upload?'upload':'general';
     const key=crypto.createHash('sha256').update(`${group}:${req.ip}`).digest('hex');
     let blocked=false;

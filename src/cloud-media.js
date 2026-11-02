@@ -1,6 +1,7 @@
 let configuration;
-const uploaded = new Map();
+
 export async function prepareCloudBody(body) {
+  const uploaded = new Map(); // Never reuse an upload across signed-in accounts.
   if (!body.includes('data:')) return body;
   configuration ??= fetch('/api/config').then(async response => {
     if (!response.ok) throw new Error('Unable to check upload settings. Please try again.');
@@ -16,6 +17,8 @@ export async function prepareCloudBody(body) {
       if(!response.ok)throw new Error(result.error||'Unable to prepare upload.');
       const upload=await fetch(result.url,{method:'PUT',headers:{'Content-Type':blob.type,'x-upsert':'false'},body:blob});
       if(!upload.ok)throw new Error('File upload failed. Please try again.');
+      const completion=await fetch('/api/media/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reference:result.reference})});
+      if(!completion.ok){const failure=await completion.json().catch(()=>({}));throw new Error(failure.error||'Unable to verify the uploaded file.');}
       uploaded.set(value,result.reference);return result.reference;
     }
     if(Array.isArray(value)){const out=[];for(const item of value)out.push(await visit(item));return out;}

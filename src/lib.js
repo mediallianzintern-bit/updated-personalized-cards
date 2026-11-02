@@ -1,6 +1,7 @@
 import {prepareCloudBody} from './cloud-media.js';
 export async function api(path, options = {}) {
-  if (typeof options.body === 'string' && !/^\/api\/public\/[^/]+\/leads$/.test(path)) options = {...options,body:await prepareCloudBody(options.body)};
+  const savesProfile = path === '/api/client/card' || /^\/api\/admin\/cards(?:\/[^/]+)?$/.test(path);
+  if (typeof options.body === 'string' && savesProfile) options = {...options,body:await prepareCloudBody(options.body)};
   const res = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', ...options.headers } });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Request failed (${res.status}). Please try again.`);

@@ -1,4 +1,6 @@
 import express from 'express';
+import {publicProfile} from './public-profile.js';
+import {profileMediaAllowed} from './media-access.js';
 import {mediaRoutes,publicImageUrls} from './media.js';
 import {rateGate} from './rate-gate.js';
 import {persistentSessions} from './sessions.js';
@@ -21,7 +23,8 @@ export function createApp({ dataDir, password = '', production = false, publicUr
   const auth = req => {
     if (!password && !production && local(req)) return true;
     const token = req.headers.cookie?.match(/(?:^|;\s*)cards_session=([a-f0-9]{64})(?:;|$)/)?.[1];
-    return token && (sessions.get(token) || 0) > Date.now();
+    const session = token && sessions.get(token);
+    return session?.expires > Date.now() && session.credentialTag === crypto.createHmac('sha256',password).update(token).digest('hex');
   };
   app.disable('x-powered-by');
   app.use((req, res, next) => {
@@ -37,7 +40,13 @@ export function createApp({ dataDir, password = '', production = false, publicUr
     if (!production && !password && !['localhost', '127.0.0.1', '[::1]'].includes(req.hostname)) return res.status(403).json({ error: 'Local development only.' });
     next();
   });
-  app.use(express.json({ limit: '12mb' }));
+  const smallJson = express.json({limit:'4kb',inflate:false});
+  const leadJson = express.json({limit:'640kb',inflate:false});
+  const profileJson = express.json({limit:'12mb',inflate:false});
+  app.use((req,res,next) => {
+    const small = ['/api/login','/api/client/login','/api/media/upload','/api/media/complete'].includes(req.path) || /^\/api\/public\/[^/]+\/events$/.test(req.path);
+    return (small ? smallJson : /^\/api\/public\/[^/]+\/leads$/.test(req.path) ? leadJson : profileJson)(req,res,next);
+  });
   if (store.middleware) { app.use('/api', store.middleware); app.use('/api', rateGate(store)); }
   mediaRoutes(app,store,media,auth);
   app.get('/api/session', (req, res) => res.json({ authenticated: Boolean(auth(req)), localMode: !password && !production, publicUrl }));
@@ -45,9 +54,9 @@ export function createApp({ dataDir, password = '', production = false, publicUr
     const candidate = crypto.createHash('sha256').update(String(req.body.password || '')).digest();
     const expected = crypto.createHash('sha256').update(password).digest();
     if (!password || !crypto.timingSafeEqual(candidate, expected)) return res.status(401).json({ error: 'Incorrect password.' });
-    for (const [key, expiry] of sessions) if (expiry < Date.now()) sessions.delete(key);
+    for (const [key, expiry] of sessions) if ((expiry.expires ?? expiry) < Date.now()) sessions.delete(key);
     const token = crypto.randomBytes(32).toString('hex');
-    sessions.set(token, Date.now() + 12 * 3600_000);
+    sessions.set(token, {expires:Date.now() + 12 * 3600_000,credentialTag:crypto.createHmac('sha256',password).update(token).digest('hex')});
     res.cookie('cards_session', token, { httpOnly: true, sameSite: 'strict', secure: production, maxAge: 12 * 3600_000 });
     res.json({ ok: true });
   });
@@ -55,11 +64,11 @@ export function createApp({ dataDir, password = '', production = false, publicUr
   const publicCard = req => store.get().cards.find(c => c.published?.slug === req.params.slug);
   const limiter = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false });
   app.use('/api/public', limiter);
-  app.get('/api/public/:slug', async (req, res) => { const c = publicCard(req); if (!c) return res.status(404).json({ error: 'This card is not available.' }); const imageUrls = await publicImageUrls(c.published, media); res.json({...c.published, imageUrls}); });
+  app.get('/api/public/:slug', async (req, res) => { const c = publicCard(req); if (!c) return res.status(404).json({ error: 'This card is not available.' }); const profile = publicProfile(c.published); const imageUrls = await publicImageUrls(profile, media); res.json({...profile, imageUrls}); });
   app.get('/api/public/:slug/contact.vcf', (req, res) => {
     const c = publicCard(req); if (!c || !c.published.saveEnabled) return res.status(404).json({ error: 'Contact download is unavailable.' });
     recordEvent(req,c.id,{type:'save',source:sourceType(req.query.via)});
-    res.set({ 'Content-Type': 'text/vcard; charset=utf-8', 'Content-Disposition': `attachment; filename="${c.published.slug}.vcf"` }).send(vcard(c.published));
+    res.set({ 'Content-Type': 'text/vcard; charset=utf-8', 'Content-Disposition': `attachment; filename="${c.published.slug}.vcf"` }).send(vcard(publicProfile(c.published)));
   });
   app.post('/api/public/:slug/leads', rateLimit({windowMs: 3600_000, limit: 15, standardHeaders:true, legacyHeaders:false}), (req, res) => {
     const c = publicCard(req); if (!c || !c.published.exchangeEnabled) return res.status(404).json({ error: 'Contact exchange is unavailable.' });
@@ -89,12 +98,13 @@ export function createApp({ dataDir, password = '', production = false, publicUr
     recordEvent(req,c.id,parsed.data);
     res.json({ ok: true });
   });
-  clientRoutes(app,store,{production});
+  clientRoutes(app,store,{production,cloudMedia:Boolean(media)});
   app.use('/api/admin', (req, res, next) => auth(req) ? next() : res.status(401).json({ error: 'Please sign in.' }));
   app.get('/api/admin/cards', (req, res) => res.json(store.get().cards));
   app.post('/api/admin/cards', (req, res) => {
     const parsed = profileSchema.safeParse(req.body.profile || { ...seedProfile, name: String(req.body.name || '').trim(), title: '', email: '', phone: '', about: '', slug: 'team-' + crypto.randomBytes(4).toString('hex') });
     if (!parsed.success) return res.status(400).json({error:'Enter a team member’s name.'});
+    if (!profileMediaAllowed(parsed.data,{store,principal:'admin',cloud:Boolean(media)})) return res.status(400).json({error:'Upload and verify files before adding them to a card.'});
     if (store.get().cards.some(c=>c.draft.slug===parsed.data.slug||c.published?.slug===parsed.data.slug))return res.status(409).json({error:'That card URL is already in use.'});
     const card = { id: crypto.randomUUID(), draft: parsed.data, published: null, updatedAt: new Date().toISOString(), publishedAt: null };
     if (store.get().cards.length >= 200) return res.status(400).json({error:'This workspace supports up to 200 cards.'});
@@ -114,12 +124,14 @@ export function createApp({ dataDir, password = '', production = false, publicUr
     const parsed = profileSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join('; ') });
     const c = store.get().cards.find(c => c.id === req.params.id); if (!c) return res.status(404).json({ error: 'Card not found.' });
+    if (!profileMediaAllowed(parsed.data,{store,card:c,principal:'admin',cloud:Boolean(media)})) return res.status(400).json({error:'Upload and verify files before saving the card.'});
     if (store.get().cards.some(other => other.id !== c.id && (other.draft.slug === parsed.data.slug || other.published?.slug === parsed.data.slug))) return res.status(409).json({error:'That card URL is already in use.'});
     store.update(db => { const card = db.cards.find(v => v.id === c.id); card.draft = parsed.data; card.updatedAt = new Date().toISOString(); });
     res.json(store.get().cards.find(v => v.id === c.id));
   });
   app.post('/api/admin/cards/:id/publish', (req, res) => {
     const c = store.get().cards.find(c => c.id === req.params.id); if (!c) return res.status(404).json({error:'Card not found.'});
+    if (!profileMediaAllowed(c.draft,{store,card:c,principal:'admin',cloud:Boolean(media)})) return res.status(400).json({error:'The card contains unverified files.'});
     if (store.get().cards.some(o => o.id !== c.id && o.published?.slug === c.draft.slug)) return res.status(409).json({error:'That card URL is already published.'});
     store.update(db => { const card = db.cards.find(v => v.id === c.id); card.published = structuredClone(card.draft); card.publishedAt = new Date().toISOString(); });
     res.json(store.get().cards.find(v => v.id === c.id));
@@ -135,6 +147,12 @@ export function createApp({ dataDir, password = '', production = false, publicUr
   });
   app.get('/api/admin/backup', (req, res) => res.attachment('mediallianz-backup.json').json(store.get()));
   app.use('/api', (req, res) => res.status(404).json({error:'Endpoint not found.'}));
-  app.use((err, req, res, next) => { if (res.headersSent) return next(err); console.error(err.message); res.status(err.status === 413 ? 413 : err.status === 400 ? 400 : 500).json({error:err.status===413 ? 'Images are too large. Use smaller files.' : err.status===400 ? 'Invalid request.' : 'Unable to save changes. Please try again.'}); });
+  app.use((err, req, res, next) => {
+    if (res.headersSent) return next(err);
+    const status = [400,413,415].includes(err.status) ? err.status : 500;
+    // Do not log credentials or request payloads embedded in parser/provider errors.
+    if (status === 500) console.error('API request failed', {code:err.code || 'INTERNAL_ERROR'});
+    res.status(status).json({error:status===413 ? 'This request is too large. Use smaller files.' : status===415 ? 'Send uncompressed JSON.' : status===400 ? 'Invalid request.' : 'Unable to save changes. Please try again.'});
+  });
   return app;
 }

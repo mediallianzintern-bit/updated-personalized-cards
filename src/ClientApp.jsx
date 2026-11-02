@@ -1,3 +1,4 @@
+import {withoutProfileMedia} from '../shared/profile.js';
 import {LeadDetails} from './ExchangeDetails';
 import React,{useEffect,useState} from 'react';
 import CardWizard from './CardWizard';
@@ -16,7 +17,14 @@ export default function ClientApp(){
  useEffect(()=>{if(mode==='loading')load()},[]);
  const dirty=card&&JSON.stringify(profile)!==JSON.stringify(card.draft);
  useEffect(()=>{const warn=e=>{if(dirty){e.preventDefault();e.returnValue=''}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn)},[dirty]);
- async function submit(e){e.preventDefault();setBusy(true);setError('');try{if(signup){accept(await api('/api/client/register',{method:'POST',body:JSON.stringify({profile:signup,password})}));setSignup(null);setMessage('Your card is saved. Publish it when you’re ready to share.')}else{await api('/api/client/login',{method:'POST',body:JSON.stringify({email,password})});await load()}setPassword('')}catch(e){setError(e.message)}finally{setBusy(false)}}
+ async function submit(e){e.preventDefault();setBusy(true);setError('');try{if(signup){
+ const selected=signup;
+ const created=await api('/api/client/register',{method:'POST',body:JSON.stringify({profile:withoutProfileMedia(selected),password})});
+ accept(created);setSignup(null);setPassword('');
+ const complete={...selected,slug:created.draft.slug};setProfile(complete);
+ try{accept(await api('/api/client/card',{method:'PUT',body:JSON.stringify(complete)}));setMessage('Your card is saved. Publish it when you’re ready to share.')}
+ catch(uploadError){setError('Your account was created. '+uploadError.message+' Your selected files are still here; use Save changes to retry.')}
+ }else{await api('/api/client/login',{method:'POST',body:JSON.stringify({email,password})});await load()}setPassword('')}catch(e){setError(e.message)}finally{setBusy(false)}}
  async function save(publish){setBusy(true);setError('');try{let c=await api('/api/client/card',{method:'PUT',body:JSON.stringify(profile)});if(publish)c=await api('/api/client/publish',{method:'POST'});setCard(c);setProfile(c.draft);setMessage(publish?'Your card is live. Share it with your next connection.':'Changes saved. Publish to update your live card.')}catch(e){setError(e.message)}finally{setBusy(false)}}
  async function showPage(next){setPage(next);setError('');try{if(next==='contacts')setContacts(await api('/api/client/leads'))}catch(e){setError(e.message)}}
  if(mode==='loading')return <div className="loading-screen"><p>Opening your card…</p></div>;
