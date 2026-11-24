@@ -2,7 +2,7 @@ import express from 'express';
 import {publicProfile} from './public-profile.js';
 import {profileMediaAllowed} from './media-access.js';
 import {mediaRoutes,publicImageUrls} from './media.js';
-import {copyCard} from './card-copy.js';
+import {copyCard,removeCard} from './card-copy.js';
 import {rateGate} from './rate-gate.js';
 import {persistentSessions} from './sessions.js';
 import {clientRoutes} from './clients.js';
@@ -130,12 +130,7 @@ export function createApp({ dataDir, password = '', production = false, publicUr
   app.delete('/api/admin/cards/:id', (req,res)=>{
     const card=store.get().cards.find(c=>c.id===req.params.id);
     if(!card)return res.status(404).json({error:'Card not found.'});
-    store.update(db=>{
-      db.cards=db.cards.filter(c=>c.id!==card.id);
-      db.leads=db.leads.filter(l=>l.cardId!==card.id);
-      db.events=db.events.filter(e=>e.cardId!==card.id);
-      if(db.shortLinks)for(const [code,link] of Object.entries(db.shortLinks))if(link.cardId===card.id)delete db.shortLinks[code];
-    });
+    store.update(db=>removeCard(db,card.id));
     res.json({ok:true});
   });
   app.put('/api/admin/cards/:id', (req, res) => {

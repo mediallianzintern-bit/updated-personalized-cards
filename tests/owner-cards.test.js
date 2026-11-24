@@ -20,7 +20,7 @@ async function fixture(t) {
     assert.equal(res.status,201);
     return {request,first:await res.json()};
   }
-  return {owner};
+  return {owner,base,dataDir};
 }
 
 test('owners can hold several cards and every request stays inside their own cards',async t=>{
@@ -51,4 +51,39 @@ test('owners can hold several cards and every request stays inside their own car
   await a.request(`/api/client/cards/${a.first.id}/duplicate`,'POST',{slug:'a-five'});
   res=await a.request(`/api/client/cards/${a.first.id}/duplicate`,'POST',{slug:'a-six'});
   assert.equal(res.status,400);assert.match((await res.json()).error,/up to 5/);
+});
+
+test('owners can delete their own extra cards and everything tied to them',async t=>{
+  const {owner,base,dataDir}=await fixture(t);
+  const a=await owner('a@example.test','a-card'),b=await owner('b@example.test','b-card');
+  await a.request(`/api/client/publish?card=${a.first.id}`,'POST');
+  const event=await (await a.request(`/api/client/cards/${a.first.id}/duplicate`,'POST',{slug:'a-event'})).json();
+  const draft=await (await a.request(`/api/client/cards/${a.first.id}/duplicate`,'POST',{slug:'a-draft'})).json();
+  assert.equal((await a.request(`/api/client/publish?card=${event.id}`,'POST')).status,200);
+  const short=(await (await a.request(`/api/client/short-links?card=${event.id}`,'POST',{via:'link'})).json()).path;
+  assert.equal((await fetch(base+'/api/public/a-event/leads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'Lead',email:'lead@example.com',consent:true})})).status,201);
+  await fetch(base+'/api/public/a-event/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'view',source:'link'})});
+  // Another owner can neither see nor delete the card.
+  assert.equal((await b.request(`/api/client/cards/${event.id}`,'DELETE',{confirm:'a-event'})).status,404);
+  // A live card needs its URL typed back.
+  let res=await a.request(`/api/client/cards/${event.id}`,'DELETE');
+  assert.equal(res.status,400);assert.match((await res.json()).error,/Type a-event/);
+  assert.equal((await a.request(`/api/client/cards/${event.id}`,'DELETE',{confirm:'a-card'})).status,400);
+  assert.equal((await a.request(`/api/client/cards/${event.id}`,'DELETE',{confirm:' A-Event '})).status,200);
+  assert.equal((await fetch(base+'/api/public/a-event')).status,404);
+  assert.equal((await fetch(base+short,{redirect:'manual'})).status,404);
+  const db=JSON.parse(fs.readFileSync(path.join(dataDir,'database.json')));
+  assert.equal(db.cards.some(c=>c.id===event.id),false);
+  assert.equal(db.leads.some(l=>l.cardId===event.id),false);
+  assert.equal(db.events.some(e=>e.cardId===event.id),false);
+  assert.equal(Object.values(db.shortLinks||{}).some(l=>l.cardId===event.id),false);
+  // Drafts were never shared, so no confirmation is needed; the other cards keep working.
+  assert.equal((await a.request(`/api/client/cards/${draft.id}`,'DELETE')).status,200);
+  assert.deepEqual((await (await a.request('/api/client/cards')).json()).map(c=>c.id),[a.first.id]);
+  assert.equal((await fetch(base+'/api/public/'+a.first.draft.slug)).status,200);
+  // The last card stays, so the account is never left empty.
+  res=await a.request(`/api/client/cards/${a.first.id}`,'DELETE',{confirm:a.first.draft.slug});
+  assert.equal(res.status,400);assert.match((await res.json()).error,/only card/);
+  // The freed URL can be used again.
+  assert.equal((await a.request(`/api/client/cards/${a.first.id}/duplicate`,'POST',{slug:'a-event'})).status,201);
 });

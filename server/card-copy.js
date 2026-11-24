@@ -12,6 +12,14 @@ function starterProfile(source, email) {
     links: [], socials: [], gallery: [], videos: [], files: [], currentCampaign: '', followUpEnabled: false};
 }
 
+// Removes a card with its contacts, analytics and short links. Callers check ownership first.
+export function removeCard(db, cardId) {
+  db.cards = db.cards.filter(c => c.id !== cardId);
+  db.leads = db.leads.filter(l => l.cardId !== cardId);
+  db.events = db.events.filter(e => e.cardId !== cardId);
+  if (db.shortLinks) for (const [code, link] of Object.entries(db.shortLinks)) if (link.cardId === cardId) delete db.shortLinks[code];
+}
+
 // A new card always starts as an unpublished draft with its own URL, so the original's live link and QR keep working.
 // Owners only learn about conflicts with their own cards; other customers' card names stay private.
 export async function copyCard({store, media, source, name, slug, ownerId, principal, blank = false, email}) {
