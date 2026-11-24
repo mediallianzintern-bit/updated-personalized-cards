@@ -15,6 +15,10 @@
       "destination": "/api"
     },
     {
+      "source": "/s/:code",
+      "destination": "/api"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

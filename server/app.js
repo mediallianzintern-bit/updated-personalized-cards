@@ -2,14 +2,17 @@ import express from 'express';
 import {publicProfile} from './public-profile.js';
 import {profileMediaAllowed} from './media-access.js';
 import {mediaRoutes,publicImageUrls} from './media.js';
+import {copyCard} from './card-copy.js';
 import {rateGate} from './rate-gate.js';
 import {persistentSessions} from './sessions.js';
 import {clientRoutes} from './clients.js';
+import {shortLinkRoutes,createShortLink} from './short-links.js';
 import rateLimit from 'express-rate-limit';
 import crypto from 'node:crypto';
 import { createStore } from './store.js';
 import { eventSchema, deviceType, sourceType, buildInsights } from './analytics.js';
 import { profileSchema, leadSchema, seedProfile, vcard, csv } from './model.js';
+import { campaignFields, normalizeCampaign } from '../shared/campaign.js';
 
 export function createApp({ dataDir, password = '', production = false, publicUrl = '', store: providedStore, media = null }) {
   const app = express();
@@ -17,7 +20,8 @@ export function createApp({ dataDir, password = '', production = false, publicUr
   const sessions = persistentSessions(store, 'admin');
   function recordEvent(req, cardId, event) {
     if (event.eventId && store.get().events.some(e=>e.eventId===event.eventId&&e.cardId===cardId)) return;
-    store.update(db=>{db.events.push({...event,cardId,device:deviceType(req.get('user-agent')),at:new Date().toISOString()});db.events=db.events.slice(-50000)});
+    const {campaign,...rest}=event;
+    store.update(db=>{db.events.push({...rest,...(campaign?{campaign}:{}),cardId,device:deviceType(req.get('user-agent')),at:new Date().toISOString()});db.events=db.events.slice(-50000)});
   }
   const local = req => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
   const auth = req => {
@@ -49,6 +53,7 @@ export function createApp({ dataDir, password = '', production = false, publicUr
   });
   if (store.middleware) { app.use('/api', store.middleware); app.use('/api', rateGate(store)); }
   mediaRoutes(app,store,media,auth);
+  shortLinkRoutes(app,store);
   app.get('/api/session', (req, res) => res.json({ authenticated: Boolean(auth(req)), localMode: !password && !production, publicUrl }));
   app.post('/api/login', rateLimit({windowMs: 15 * 60_000, limit: 10, standardHeaders: true, legacyHeaders: false}), (req, res) => {
     const candidate = crypto.createHash('sha256').update(String(req.body.password || '')).digest();
@@ -67,7 +72,7 @@ export function createApp({ dataDir, password = '', production = false, publicUr
   app.get('/api/public/:slug', async (req, res) => { const c = publicCard(req); if (!c) return res.status(404).json({ error: 'This card is not available.' }); const profile = publicProfile(c.published); const imageUrls = await publicImageUrls(profile, media); res.json({...profile, imageUrls}); });
   app.get('/api/public/:slug/contact.vcf', (req, res) => {
     const c = publicCard(req); if (!c || !c.published.saveEnabled) return res.status(404).json({ error: 'Contact download is unavailable.' });
-    recordEvent(req,c.id,{type:'save',source:sourceType(req.query.via)});
+    recordEvent(req,c.id,{type:'save',source:sourceType(req.query.via),campaign:normalizeCampaign(Object.fromEntries(campaignFields.map(f=>[f,typeof req.query['utm_'+f]==='string'?req.query['utm_'+f]:'']))) || undefined});
     res.set({ 'Content-Type': 'text/vcard; charset=utf-8', 'Content-Disposition': `attachment; filename="${c.published.slug}.vcf"` }).send(vcard(publicProfile(c.published)));
   });
   app.post('/api/public/:slug/leads', rateLimit({windowMs: 3600_000, limit: 15, standardHeaders:true, legacyHeaders:false}), (req, res) => {
@@ -88,7 +93,8 @@ export function createApp({ dataDir, password = '', production = false, publicUr
     if(settings.requireEmail!==false&&!parsed.data.email)return res.status(400).json({error:'Enter your email address.'});
     if(settings.consentEnabled!==false&&!parsed.data.consent)return res.status(400).json({error:'Please agree to share your details.'});
     if(settings.exchangeCustomEnabled&&settings.exchangeCustomRequired&&!parsed.data.customValue)return res.status(400).json({error:'Complete the additional information field.'});
-    store.update(db => db.leads.unshift({ customLabel:settings.exchangeCustomEnabled?settings.exchangeCustomLabel:'', consentRequested:settings.consentEnabled!==false, id: crypto.randomUUID(), cardId: c.id, ...parsed.data, createdAt: new Date().toISOString() }));
+    const {campaign,...lead}=parsed.data;
+    store.update(db => db.leads.unshift({ customLabel:settings.exchangeCustomEnabled?settings.exchangeCustomLabel:'', consentRequested:settings.consentEnabled!==false, id: crypto.randomUUID(), cardId: c.id, ...lead, ...(campaign?{campaign}:{}), createdAt: new Date().toISOString() }));
     res.status(201).json({ ok: true });
   });
   app.post('/api/public/:slug/events', (req, res) => {
@@ -98,7 +104,7 @@ export function createApp({ dataDir, password = '', production = false, publicUr
     recordEvent(req,c.id,parsed.data);
     res.json({ ok: true });
   });
-  clientRoutes(app,store,{production,cloudMedia:Boolean(media)});
+  clientRoutes(app,store,{production,cloudMedia:Boolean(media),media});
   app.use('/api/admin', (req, res, next) => auth(req) ? next() : res.status(401).json({ error: 'Please sign in.' }));
   app.get('/api/admin/cards', (req, res) => res.json(store.get().cards));
   app.post('/api/admin/cards', (req, res) => {
@@ -110,6 +116,17 @@ export function createApp({ dataDir, password = '', production = false, publicUr
     if (store.get().cards.length >= 200) return res.status(400).json({error:'This workspace supports up to 200 cards.'});
     store.update(db => db.cards.push(card)); res.status(201).json(card);
   });
+  app.post('/api/admin/cards/:id/duplicate', async (req, res, next) => { try {
+    const source = store.get().cards.find(c => c.id === req.params.id); if (!source) return res.status(404).json({error:'Card not found.'});
+    const result = await copyCard({store, media, source, name: req.body.name, slug: req.body.slug, principal: 'admin'});
+    res.status(result.status).json(result.body);
+  } catch (error) { next(error); } });
+  app.post('/api/admin/cards/:id/short-links', (req, res) => {
+    if (!store.get().cards.some(c => c.id === req.params.id)) return res.status(404).json({error:'Card not found.'});
+    const result = createShortLink(store, req.params.id, req.body);
+    if (result.error) return res.status(400).json({error: result.error});
+    res.status(result.created ? 201 : 200).json({path: `/s/${result.code}`});
+  });
   app.delete('/api/admin/cards/:id', (req,res)=>{
     const card=store.get().cards.find(c=>c.id===req.params.id);
     if(!card)return res.status(404).json({error:'Card not found.'});
@@ -117,6 +134,7 @@ export function createApp({ dataDir, password = '', production = false, publicUr
       db.cards=db.cards.filter(c=>c.id!==card.id);
       db.leads=db.leads.filter(l=>l.cardId!==card.id);
       db.events=db.events.filter(e=>e.cardId!==card.id);
+      if(db.shortLinks)for(const [code,link] of Object.entries(db.shortLinks))if(link.cardId===card.id)delete db.shortLinks[code];
     });
     res.json({ok:true});
   });
@@ -141,7 +159,7 @@ export function createApp({ dataDir, password = '', production = false, publicUr
     store.update(db => { const c = db.cards.find(c => c.id === req.params.id); c.published = null; c.publishedAt = null; }); res.json({ok:true});
   });
   app.get('/api/admin/leads', (req, res) => res.json(store.get().leads));
-  app.get('/api/admin/leads.csv', (req, res) => res.type('text/csv').attachment('mediallianz-contacts.csv').send(csv([['Name','Email','Phone','Company','Message','Card','Received'], ...store.get().leads.map(l => [l.name,l.email,l.phone,l.company,l.message,store.get().cards.find(c=>c.id===l.cardId)?.draft.name || '',l.createdAt])])));
+  app.get('/api/admin/leads.csv', (req, res) => res.type('text/csv').attachment('mediallianz-contacts.csv').send(csv([['Name','Email','Phone','Company','Message','Card','Campaign','Source','Medium','Received'], ...store.get().leads.map(l => [l.name,l.email,l.phone,l.company,l.message,store.get().cards.find(c=>c.id===l.cardId)?.draft.name || '',l.campaign?.campaign||'',l.campaign?.source||'',l.campaign?.medium||'',l.createdAt])])));
   app.get('/api/admin/insights', (req, res) => {
     res.json(buildInsights(store.get(), typeof req.query.cardId==='string' ? req.query.cardId : undefined,req.query.period));
   });

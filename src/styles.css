@@ -60,3 +60,6 @@
 @media (min-width:601px){
   .public-card-wrap .digital-card.layout-signature:not(.cover-full) .card-cover{height:auto;aspect-ratio:13 / 5;object-fit:cover}
 }
+.duplicate-card-action{display:inline-flex;align-items:center;gap:6px;margin-top:16px;margin-right:14px}.link-alert{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;margin:4px 0 16px;background:#fff6e5;border:1px solid #f0d9a8;border-radius:9px;color:#6b4a0f}.link-alert svg{flex:none;margin-top:2px}.link-alert p{font-size:12px;line-height:1.6;margin:0;overflow-wrap:anywhere}
+.button.primary.is-current:disabled{background:#eef1ea;border-color:#e2e7dd;color:#6f7a72;opacity:1;box-shadow:none}
+.card-switcher{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-bottom:16px}.card-switcher select{padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;font:inherit;color:#26352f}.team-card.is-selected{outline:2px solid var(--green);outline-offset:-2px}.cards-limit{margin-top:18px;font-size:12px}
