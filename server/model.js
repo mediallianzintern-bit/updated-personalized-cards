@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import {campaignSchema} from './analytics.js';
+import {campaignValue} from '../shared/campaign.js';
 import {typographyIds} from '../shared/typography.js';
 import {socialPlatforms} from '../shared/profile.js';
 const text = (max = 300) => z.string().trim().max(max);
@@ -29,6 +31,7 @@ export const profileSchema = z.object({
   exchangeWidgets: z.boolean().default(false),
   saveLabel: text(40).min(1).default('Save Contact'), exchangeLabel: text(40).min(1).default('Exchange Contact'),
   customCtaEnabled: z.boolean().default(false), customCtaLabel: text(40).default(''), customCtaUrl: url.default(''),
+  linkTracking: z.boolean().default(true), currentCampaign: text(200).default('').transform(campaignValue),
   followUpStyle: z.enum(['classic','minimal','brand']).default('classic'),
   followUpButtonEnabled:z.boolean().default(false), followUpButtonLabel:text(40).default(''), followUpButtonUrl:url.default(''),
   followUpEnabled: z.boolean().default(false), followUpSubject: text(150).default(''), followUpMessage: text(2000).default(''),
@@ -44,7 +47,7 @@ export const profileSchema = z.object({
     if(!profile.customCtaUrl)ctx.addIssue({code:z.ZodIssueCode.custom,path:['customCtaUrl'],message:'Enter a destination URL'});
   }
 });
-export const leadSchema = z.object({ name: text(100).min(1), email: z.union([z.literal(''),z.string().trim().email().max(254)]).default(''), phone: text(40).default(''), company: text(150).default(''), message: text(2000).default(''), consent: z.boolean().default(false), customValue:text(500).default(''), photo:z.string().max(180000).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/).or(z.literal('')).default(''), voice:z.string().max(360000).regex(/^data:audio\/(webm|ogg|mpeg|mp4|wav|x-m4a);base64,[A-Za-z0-9+/=]+$/).or(z.literal('')).default(''), location:z.object({latitude:z.number().min(-90).max(90),longitude:z.number().min(-180).max(180)}).nullable().default(null) });
+export const leadSchema = z.object({ name: text(100).min(1), email: z.union([z.literal(''),z.string().trim().email().max(254)]).default(''), phone: text(40).default(''), company: text(150).default(''), message: text(2000).default(''), consent: z.boolean().default(false), customValue:text(500).default(''), photo:z.string().max(180000).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/).or(z.literal('')).default(''), voice:z.string().max(360000).regex(/^data:audio\/(webm|ogg|mpeg|mp4|wav|x-m4a);base64,[A-Za-z0-9+/=]+$/).or(z.literal('')).default(''), location:z.object({latitude:z.number().min(-90).max(90),longitude:z.number().min(-180).max(180)}).nullable().default(null), campaign: campaignSchema });
 export const seedProfile = {
   name: 'Dr. Prtiesh Patel', title: 'Founder', company: 'Mediallianz', slug: 'pritesh-patel', email: 'ppatel@mediallainz.com', phone: '+91 9892906989', website: 'https://mediallianz.com', location: '',
   about: 'Welcome to my digital card. I’m the founder of Mediallianz. Save my contact details or share yours below—let’s stay connected.',

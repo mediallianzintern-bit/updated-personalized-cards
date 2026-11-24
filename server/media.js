@@ -78,6 +78,33 @@ export function mediaRoutes(app,store,storage,adminAuth) {
   } catch(error){next(error)}});
 }
 
+export async function copyCardMedia(profile, store, storage, principal = 'admin') {
+  const refs = [...new Set(mediaValues(profile).filter(value => mediaReference.test(value)))];
+  if (!storage || !refs.length) return {profile: structuredClone(profile), assets: {}};
+  const map = new Map(), assets = {};
+  try {
+    for (const ref of refs) {
+      const oldId = ref.split('/').pop(), asset = store.get().mediaAssets?.[oldId], newId = crypto.randomUUID();
+      const {error} = await storage.copy(oldId, newId);
+      if (error) throw error;
+      map.set(ref, `/api/media/${newId}`);
+      // Legacy files without an asset record stay legacy-shaped; verified files keep their verified type and size.
+      assets[newId] = {...(asset || {}), principal, status: 'ready', createdAt: Date.now(), copiedFrom: oldId};
+    }
+  } catch {
+    await storage.remove([...map.values()].map(ref => ref.split('/').pop())).catch(() => {});
+    return null;
+  }
+  const swap = value => map.get(value) || value;
+  const copy = structuredClone(profile);
+  for (const key of ['photo','logo','cover']) if (copy[key]) copy[key] = swap(copy[key]);
+  for (const item of copy.links || []) if (item.thumbnail) item.thumbnail = swap(item.thumbnail);
+  for (const item of copy.gallery || []) item.image = swap(item.image);
+  for (const item of copy.videos || []) if (item.thumbnail) item.thumbnail = swap(item.thumbnail);
+  for (const item of copy.files || []) item.data = swap(item.data);
+  return {profile: copy, assets};
+}
+
 export async function publicImageUrls(profile, storage) {
   if (!storage) return {};
   // Filter here as well so callers cannot accidentally sign hidden section media.

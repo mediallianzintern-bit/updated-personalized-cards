@@ -2,7 +2,7 @@
 const displayFields = ['name','title','company','slug','photo','logo','cover','accent','background',
   'buttonColor','photoPositionX','photoPositionY','coverDisplay','coverPositionX','coverPositionY',
   'logoBackground','logoBackgroundColor','logoSize','layout','font','radius','saveEnabled',
-  'exchangeEnabled','saveLabel','exchangeLabel','showBranding','customCtaEnabled'];
+  'exchangeEnabled','saveLabel','exchangeLabel','showBranding','customCtaEnabled','linkTracking','currentCampaign'];
 const formFields = ['exchangeFlow','requireEmail','consentEnabled','exchangeCustomEnabled',
   'exchangeCustomRequired','exchangeWidgets'];
 const sectionNames = ['about','contact','links','socials','gallery','videos','files'];

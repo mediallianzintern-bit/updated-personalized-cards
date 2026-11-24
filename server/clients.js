@@ -1,3 +1,5 @@
+import {createShortLink} from './short-links.js';
+import {copyCard} from './card-copy.js';
 import crypto from 'node:crypto';
 import {profileMediaAllowed} from './media-access.js';
 import {persistentSessions} from './sessions.js';
@@ -6,7 +8,7 @@ import rateLimit from 'express-rate-limit';
 import {profileSchema} from './model.js';
 import {buildInsights} from './analytics.js';
 const scrypt=promisify(crypto.scrypt);
-export function clientRoutes(app,store,{production,cloudMedia=false}) {
+export function clientRoutes(app,store,{production,cloudMedia=false,media=null}) {
  const sessions=persistentSessions(store,'client');
  const cookie=req=>req.headers.cookie?.match(/(?:^|;\s*)client_session=([a-f0-9]{64})(?:;|$)/)?.[1];
  const session=req=>{const s=sessions.get(cookie(req));return s&&s.expires>Date.now()?s:null};
@@ -35,11 +37,16 @@ export function clientRoutes(app,store,{production,cloudMedia=false}) {
   login(res,account.id);res.json({ok:true});
  }catch(e){next(e)}});
  app.post('/api/client/logout',(req,res)=>{sessions.delete(cookie(req));res.clearCookie('client_session');res.json({ok:true})});
- app.use('/api/client',(req,res,next)=>{const s=session(req);if(!s)return res.status(401).json({error:'Sign in to your card account.'});req.clientCard=store.get().cards.find(c=>c.ownerId===s.accountId);if(!req.clientCard)return res.status(404).json({error:'Your card was removed by your administrator. Contact your provider for help.'});next()});
+ // An owner may hold several cards; ?card= picks one of their own, and requests without it use their first card.
+ app.use('/api/client',(req,res,next)=>{const s=session(req);if(!s)return res.status(401).json({error:'Sign in to your card account.'});req.clientAccountId=s.accountId;req.clientCards=store.get().cards.filter(c=>c.ownerId===s.accountId);if(!req.clientCards.length)return res.status(404).json({error:'Your card was removed by your administrator. Contact your provider for help.'});const wanted=typeof req.query.card==='string'?req.query.card:'';req.clientCard=wanted?req.clientCards.find(c=>c.id===wanted):req.clientCards[0];if(!req.clientCard)return res.status(404).json({error:'Card not found.'});next()});
+ app.get('/api/client/cards',(req,res)=>res.json(req.clientCards.map(safe)));
+ app.post('/api/client/cards',async(req,res,next)=>{try{const account=(store.get().clients||[]).find(a=>a.id===req.clientAccountId);const result=await copyCard({store,media,source:req.clientCard,name:req.body.name,slug:req.body.slug,ownerId:req.clientAccountId,principal:`client:${req.clientAccountId}`,blank:true,email:account?.email});res.status(result.status).json(result.status===201?safe(result.body):result.body)}catch(e){next(e)}});
+ app.post('/api/client/cards/:id/duplicate',async(req,res,next)=>{try{const source=req.clientCards.find(c=>c.id===req.params.id);if(!source)return res.status(404).json({error:'Card not found.'});const result=await copyCard({store,media,source,name:req.body.name,slug:req.body.slug,ownerId:req.clientAccountId,principal:`client:${req.clientAccountId}`});res.status(result.status).json(result.status===201?safe(result.body):result.body)}catch(e){next(e)}});
  app.get('/api/client/card',(req,res)=>res.json(safe(req.clientCard)));
  app.put('/api/client/card',(req,res)=>{const parsed=profileSchema.safeParse(req.body);if(!parsed.success)return res.status(400).json({error:'Check the card fields and try again.'});if(!profileMediaAllowed(parsed.data,{store,card:req.clientCard,principal:`client:${req.clientCard.ownerId}`,cloud:cloudMedia}))return res.status(400).json({error:'Use verified files uploaded for your own card.'});if(store.get().cards.some(c=>c.id!==req.clientCard.id&&(c.draft.slug===parsed.data.slug||c.published?.slug===parsed.data.slug)))return res.status(409).json({error:'That card URL is already in use.'});store.update(db=>{const c=db.cards.find(c=>c.id===req.clientCard.id);c.draft=parsed.data;c.updatedAt=new Date().toISOString()});res.json(safe(store.get().cards.find(c=>c.id===req.clientCard.id)))});
  app.post('/api/client/publish',(req,res)=>{if(!profileMediaAllowed(req.clientCard.draft,{store,card:req.clientCard,principal:`client:${req.clientCard.ownerId}`,cloud:cloudMedia}))return res.status(400).json({error:'The card contains unverified files.'});store.update(db=>{const c=db.cards.find(c=>c.id===req.clientCard.id);c.published=structuredClone(c.draft);c.publishedAt=new Date().toISOString()});res.json(safe(store.get().cards.find(c=>c.id===req.clientCard.id)))});
  app.post('/api/client/unpublish',(req,res)=>{store.update(db=>{const c=db.cards.find(c=>c.id===req.clientCard.id);c.published=null;c.publishedAt=null});res.json(safe(store.get().cards.find(c=>c.id===req.clientCard.id)))});
+ app.post('/api/client/short-links',(req,res)=>{const result=createShortLink(store,req.clientCard.id,req.body);if(result.error)return res.status(400).json({error:result.error});res.status(result.created?201:200).json({path:`/s/${result.code}`})});
  app.get('/api/client/insights',(req,res)=>res.json(buildInsights(store.get(),req.clientCard.id,req.query.period)));
  app.get('/api/client/leads',(req,res)=>res.json(store.get().leads.filter(l=>l.cardId===req.clientCard.id)));
 }

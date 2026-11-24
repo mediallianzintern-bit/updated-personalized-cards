@@ -1,12 +1,13 @@
 import FollowUpEditor from './FollowUpEditor';
 import React, {useState,useRef,useEffect} from 'react';
 import {Field,Toggle,ExchangeForm,Button} from './components';
-import {ArrowLeft,ChevronRight,Eye,Link,Contact,Mail,Phone,Plus,CheckCircle,LayoutGrid,MousePointer,Globe,ExternalLink} from 'lucide-react';
+import {ArrowLeft,ChevronRight,Eye,Link,Contact,Mail,Phone,Plus,CheckCircle,LayoutGrid,MousePointer,Globe,ExternalLink,Megaphone} from 'lucide-react';
+import {campaignValue,outboundUrl} from '../shared/campaign.js';
 import {cardUrl} from './lib';
 import './card-settings.css';
 function SettingToggle({icon:Icon,...props}){return <div className="settings-toggle"><Icon size={21} aria-hidden="true"/><Toggle {...props}/></div>}
 function MenuRow({icon:Icon,title,description,onClick}){return <button type="button" className="settings-menu-row" onClick={onClick}><Icon size={21} aria-hidden="true"/><span><strong>{title}</strong>{description&&<small>{description}</small>}</span><ChevronRight size={20} aria-hidden="true"/></button>}
-const titles={link:'Profile link',flow:'Interaction flow',form:'Exchange form',email:'Follow-up email',actions:'Customize call to action',publication:'Publication status'};
+const titles={link:'Profile link',flow:'Interaction flow',form:'Exchange form',email:'Follow-up email',actions:'Customize call to action',tracking:'Campaign tracking',publication:'Publication status'};
 export default function CardSettings({profile:p,setProfile,publicUrl,published,onShare,onUnpublish}) {
   const [preview,setPreview]=useState(false),[page,setPage]=useState('');
   const heading=useRef(null),initial=useRef(true);
@@ -17,7 +18,7 @@ export default function CardSettings({profile:p,setProfile,publicUrl,published,o
       <h2 ref={heading} tabIndex={-1}>Settings</h2><p className="settings-intro">Make your card work your way.</p>
       <div className="settings-menu-group"><MenuRow icon={Link} title="Profile link" description={cardUrl(p.slug,publicUrl)} onClick={()=>setPage('link')}/></div>
       <div className="settings-menu-group"><h3>Contact capture</h3><p>Control how people connect with you.</p><MenuRow icon={Contact} title="Interaction flow" onClick={()=>setPage('flow')}/><MenuRow icon={LayoutGrid} title="Exchange contact form" onClick={()=>setPage('form')}/><MenuRow icon={Mail} title="Follow-up email" description="Prepare your message · sender not connected" onClick={()=>setPage('email')}/></div>
-      <div className="settings-menu-group"><MenuRow icon={MousePointer} title="Customize call to action" onClick={()=>setPage('actions')}/></div>
+      <div className="settings-menu-group"><MenuRow icon={MousePointer} title="Customize call to action" onClick={()=>setPage('actions')}/><MenuRow icon={Megaphone} title="Campaign tracking" description={[p.currentCampaign?`Current campaign: ${campaignValue(p.currentCampaign)}`:'No current campaign',p.linkTracking===false?'links not tagged':'links tagged'].join(' · ')} onClick={()=>setPage('tracking')}/></div>
       <div className="settings-menu-group"><SettingToggle icon={Globe} label="Show card branding" checked={p.showBranding} onChange={value=>set('showBranding',value)}/><MenuRow icon={ExternalLink} title="Publication status" description={published?'Your card is live':'Draft · not published'} onClick={()=>setPage('publication')}/></div>
     </>}
     {page==='link'&&<div className="settings-panel"><p>Customize the link to your public card.</p><Field label="Card URL" hint="Changing this link means old links and QR codes will need updating."><div className="slug-input"><span>/c/</span><input aria-label="Card URL" value={p.slug} onChange={e=>set('slug',e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,''))}/></div></Field><p className="settings-link">{cardUrl(p.slug,publicUrl)}</p><Button onClick={onShare}>Share published card</Button></div>}
@@ -37,6 +38,10 @@ export default function CardSettings({profile:p,setProfile,publicUrl,published,o
       <Toggle label="Custom action button" description="Add a booking, website or other link." checked={p.customCtaEnabled??false} onChange={value=>set('customCtaEnabled',value)}/>
       {p.customCtaEnabled&&<div className="form-grid"><Field label="Button label" value={p.customCtaLabel||''} maxLength={40} required placeholder="Book a meeting" onChange={e=>set('customCtaLabel',e.target.value)}/><Field label="Destination URL" type="url" value={p.customCtaUrl||''} maxLength={2000} required placeholder="https://" onChange={e=>set('customCtaUrl',e.target.value)}/></div>}
 </div>}
+    {page==='tracking'&&<div className="settings-panel"><p>Set a campaign once, for example before an event. Your QR code and share links start with it, and visitors who click your links carry it to your website.</p>
+      <Field label="Current campaign" hint={p.currentCampaign?`Saved as ${campaignValue(p.currentCampaign)} · publish changes to use it on your live card.`:'Leave empty when no campaign is running.'} value={p.currentCampaign||''} maxLength={80} placeholder="toronto_expo_2026" onChange={e=>set('currentCampaign',e.target.value)}/>
+      <Toggle label="Tag outgoing links" description="Add UTM tags to your website, links, social profiles and action button when visitors click them. Phone and email links are never changed." checked={p.linkTracking!==false} onChange={value=>set('linkTracking',value)}/>
+      {p.linkTracking!==false&&<p className="settings-note">Example: {outboundUrl(p.website||'https://example.com',{campaign:p.currentCampaign,slug:p.slug})}<br/>Only websites with their own analytics, such as your company site, can report these tags. Social platforms show clicks in Insights but don’t share UTM data.</p>}</div>}
     {page==='email'&&<FollowUpEditor profile={p} setProfile={setProfile}/>}
     {page==='publication'&&<div className="settings-panel"><p>{published?'Your card is live. Taking it offline keeps your draft and connections.':'Your card is a draft. Use Publish changes to make it available.'}</p>{published&&<Button onClick={onUnpublish}>Take card offline</Button>}</div>}
     {preview&&<ExchangeForm profile={p} preview onClose={()=>setPreview(false)}/>}

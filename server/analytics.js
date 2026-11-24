@@ -1,10 +1,14 @@
 import { z } from 'zod';
+import {campaignFields,normalizeCampaign,campaignKey} from '../shared/campaign.js';
+// Unknown or malformed tags are dropped rather than rejecting the event.
+export const campaignSchema = z.object(Object.fromEntries(campaignFields.map(f=>[f,z.string().max(200).optional()]))).optional().catch(undefined).transform(v=>normalizeCampaign(v)||undefined);
 export const sources = ['qr', 'nfc', 'link', 'direct', 'email-signature', 'virtual-background', 'other'];
 export const eventSchema = z.object({
   type: z.enum(['view','link','share']),
   eventId: z.string().uuid().optional(),
   source: z.enum(sources).default('direct'),
   target: z.string().max(100).optional(),
+  campaign: campaignSchema,
 });
 export function deviceType(userAgent='') {
   if (!userAgent) return 'unknown';
@@ -36,9 +40,16 @@ export function buildInsights(db, cardId, period='30') {
   }
   for(const row of counts.values())breakdown[row.category].push(row);
   for(const group of Object.values(breakdown))group.sort((a,b)=>b.clicks-a.clicks||a.label.localeCompare(b.label));
+  const campaignRows=new Map();
+  const campaignRow=item=>{const key=campaignKey(item.campaign);let row=campaignRows.get(key);if(!row){row={key,campaign:item.campaign?.campaign||'',source:item.campaign?.source||'',medium:item.campaign?.medium||'',tagged:Boolean(item.campaign),views:0,clicks:0,saves:0,leads:0};campaignRows.set(key,row)}return row};
+  for(const e of events){const field={view:'views',link:'clicks',save:'saves'}[e.type];if(field)campaignRow(e)[field]++;}
+  for(const l of leads)campaignRow(l).leads++;
+  const campaigns=[...campaignRows.values()].filter(r=>r.tagged).sort((a,b)=>b.leads-a.leads||b.views-a.views||a.key.localeCompare(b.key));
+  const untagged=campaignRows.get('')||{key:'',campaign:'',source:'',medium:'',tagged:false,views:0,clicks:0,saves:0,leads:0};
   const chartDays=period==='7'?7:14;
   return { period,views:views.length,saves:events.filter(e=>e.type==='save').length,clicks:clickEvents.length,shares:events.filter(e=>e.type==='share').length,leads:leads.length,
     sources:[...sources,'unknown'].map(source=>({source,views:views.filter(e=>(e.source||'unknown')===source).length})),
+    campaigns,untagged,
     socialClicks:breakdown.social,linkClicks:breakdown.link,otherClicks:breakdown.other,
     days:Array.from({length:chartDays},(_,i)=>{const date=new Date(now-(chartDays-1-i)*86400_000).toISOString().slice(0,10);return {date,views:views.filter(e=>e.at.startsWith(date)).length}}),
     cards:db.cards.filter(c=>!cardId||c.id===cardId).map(c=>({id:c.id,name:c.draft.name,views:views.filter(e=>e.cardId===c.id).length,leads:leads.filter(l=>l.cardId===c.id).length})),
