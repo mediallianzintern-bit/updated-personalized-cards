@@ -2,7 +2,7 @@ import express from 'express';
 import {publicProfile} from './public-profile.js';
 import {profileMediaAllowed} from './media-access.js';
 import {mediaRoutes,publicImageUrls} from './media.js';
-import {copyCard,removeCard} from './card-copy.js';
+import {copyCard,deleteCard} from './card-copy.js';
 import {rateGate} from './rate-gate.js';
 import {persistentSessions} from './sessions.js';
 import {clientRoutes} from './clients.js';
@@ -127,12 +127,12 @@ export function createApp({ dataDir, password = '', production = false, publicUr
     if (result.error) return res.status(400).json({error: result.error});
     res.status(result.created ? 201 : 200).json({path: `/s/${result.code}`});
   });
-  app.delete('/api/admin/cards/:id', (req,res)=>{
+  app.delete('/api/admin/cards/:id', async (req,res,next)=>{ try {
     const card=store.get().cards.find(c=>c.id===req.params.id);
     if(!card)return res.status(404).json({error:'Card not found.'});
-    store.update(db=>removeCard(db,card.id));
+    await deleteCard(store,media,card.id);
     res.json({ok:true});
-  });
+  } catch (error) { next(error); } });
   app.put('/api/admin/cards/:id', (req, res) => {
     const parsed = profileSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join('; ') });

@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import {profileSchema} from './model.js';
-import {profileMediaAllowed} from './media-access.js';
+import {profileMediaAllowed,mediaValues,mediaReference} from './media-access.js';
 import {copyCardMedia} from './media.js';
 
 export const MAX_CARDS = 200;
@@ -13,11 +13,34 @@ function starterProfile(source, email) {
 }
 
 // Removes a card with its contacts, analytics and short links. Callers check ownership first.
-export function removeCard(db, cardId) {
+function removeCard(db, cardId, files) {
   db.cards = db.cards.filter(c => c.id !== cardId);
   db.leads = db.leads.filter(l => l.cardId !== cardId);
   db.events = db.events.filter(e => e.cardId !== cardId);
   if (db.shortLinks) for (const [code, link] of Object.entries(db.shortLinks)) if (link.cardId === cardId) delete db.shortLinks[code];
+  for (const id of files) delete db.mediaAssets?.[id];
+}
+
+// Stored files only this card uses. Another card can point at the same file (an admin may reuse an upload,
+// and cards made before copying existed share files), so those files stay.
+export function cardOnlyMedia(db, cardId) {
+  const ids = card => [...mediaValues(card.draft), ...mediaValues(card.published)].filter(v => mediaReference.test(v)).map(v => v.split('/').pop());
+  const card = db.cards.find(c => c.id === cardId);
+  if (!card) return [];
+  const others = new Set(db.cards.filter(c => c.id !== cardId).flatMap(ids));
+  return [...new Set(ids(card))].filter(id => !others.has(id));
+}
+
+// Files are removed before the database change commits. If the commit then fails, the card stays with
+// missing images and deleting it again finishes the job; the reverse order could leave files nobody can find.
+// A storage failure never blocks the delete: the file records are kept so the files can be cleaned up later.
+export async function deleteCard(store, media, cardId) {
+  let files = cardOnlyMedia(store.get(), cardId);
+  if (media && files.length) {
+    const {error} = await media.remove(files).catch(error => ({error}));
+    if (error) { console.error('Card files could not be removed from storage:', error.message || error); files = []; }
+  }
+  store.update(db => removeCard(db, cardId, files));
 }
 
 // A new card always starts as an unpublished draft with its own URL, so the original's live link and QR keep working.
