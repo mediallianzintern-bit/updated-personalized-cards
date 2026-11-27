@@ -1,6 +1,8 @@
 import {prepareCloudBody} from './cloud-media.js';
 export async function api(path, options = {}) {
-  const savesProfile = path === '/api/client/card' || /^\/api\/admin\/cards(?:\/[^/]+)?$/.test(path);
+  // Match on the route alone: owner saves carry ?card=<id>, and new images must still be uploaded first.
+  const route = path.split('?')[0];
+  const savesProfile = route === '/api/client/card' || /^\/api\/admin\/cards(?:\/[^/]+)?$/.test(route);
   if (typeof options.body === 'string' && savesProfile) options = {...options,body:await prepareCloudBody(options.body)};
   const res = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', ...options.headers } });
   const data = await res.json().catch(() => ({}));
